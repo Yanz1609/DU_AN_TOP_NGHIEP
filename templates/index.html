@@ -1,0 +1,1380 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DriveGuard AI | Driver Monitoring</title>
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+<div class="app">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">◉</div>
+      <div>
+        <h2>DriveGuard AI</h2>
+        <small>DRIVER MONITORING</small>
+      </div>
+    </div>
+
+    <div class="nav-label">TỔNG QUAN</div>
+    <a class="nav-item active" href="#overview">
+      <span class="nav-icon">▦</span> Dashboard
+    </a>
+    <a class="nav-item" href="#camera">
+      <span class="nav-icon">▣</span> Giám sát camera
+    </a>
+    <a class="nav-item" href="#analytics">
+      <span class="nav-icon">⌁</span> Phân tích dữ liệu
+    </a>
+
+    <div class="nav-label">QUẢN LÝ</div>
+    <a class="nav-item" href="#history">
+      <span class="nav-icon">◷</span> Lịch sử cảnh báo
+    </a>
+
+    <div class="sidebar-bottom">
+      <span class="dot"></span> Hệ thống giám sát<br>
+      <span style="padding-left:13px">
+        Deep Learning · MediaPipe
+      </span>
+      <div style="margin-top:18px">
+        Driver Drowsiness Detection
+      </div>
+      <div>Local monitoring system</div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main class="main">
+
+    <header class="topbar" id="overview">
+      <div>
+        <h1>Dashboard giám sát</h1>
+        <div class="subtitle">
+          Theo dõi trạng thái tài xế và phân tích
+          cảnh báo theo thời gian thực.
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <div class="clock">
+          <div id="currentDate">--</div>
+          <div id="currentTime">--:--:--</div>
+        </div>
+        <button class="btn btn-primary"
+                id="refreshBtn"
+                onclick="refreshAll()">
+          ↻ Làm mới
+        </button>
+      </div>
+    </header>
+
+    <!-- ================= THỐNG KÊ ================= -->
+    <section class="stats">
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span class="stat-label">Tổng cảnh báo</span>
+          <span class="stat-icon teal">▤</span>
+        </div>
+        <div class="stat-number" id="totalCount">--</div>
+        <div class="stat-note">
+          Tất cả sự kiện đã ghi nhận
+        </div>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span class="stat-label">Cảnh báo buồn ngủ</span>
+          <span class="stat-icon pink">◉</span>
+        </div>
+        <div class="stat-number" id="drowsyCount">--</div>
+        <div class="stat-note">Sự kiện DROWSY</div>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span class="stat-label">Cảnh báo ngáp</span>
+          <span class="stat-icon amber">◌</span>
+        </div>
+        <div class="stat-number" id="yawningCount">--</div>
+        <div class="stat-note">Sự kiện YAWNING</div>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span class="stat-label">Tỷ lệ buồn ngủ</span>
+          <span class="stat-icon indigo">%</span>
+        </div>
+        <div class="stat-number" id="drowsyRate">--%</div>
+        <div class="stat-note">
+          Trên tổng số cảnh báo
+        </div>
+      </article>
+
+    </section>
+
+    <!-- ================= CAMERA ================= -->
+    <section class="content-grid">
+
+      <article class="panel" id="camera">
+
+        <div class="panel-header">
+          <div>
+            <h3>Giám sát camera trực tiếp</h3>
+            <p>Phân tích mắt và miệng tài xế qua webcam</p>
+          </div>
+          <div class="live">
+            <span class="dot"></span>
+            <span id="cameraBadge">SẴN SÀNG</span>
+          </div>
+        </div>
+
+        <div class="camera-wrap" id="cameraWrap">
+
+          <div class="camera-placeholder"
+               id="cameraPlaceholder">
+            <div class="camera-icon">▣</div>
+            <div>Camera chưa được bật</div>
+            <div>
+              Nhấn “Bật camera” để bắt đầu giám sát
+            </div>
+          </div>
+
+          <img id="cameraFeed"
+               alt="Luồng webcam trực tiếp"
+               style="display:none">
+
+          <div class="camera-overlay">
+            <span class="dot"></span>
+            <span id="cameraOverlayText">
+              CAMERA OFFLINE
+            </span>
+          </div>
+
+        </div>
+
+        <div class="camera-footer">
+          <div class="camera-state" id="cameraMessage">
+            Webcam chưa khởi động
+          </div>
+
+          <div class="camera-actions">
+            <button class="btn btn-primary"
+                    id="startBtn"
+                    onclick="startCamera()">
+              ▶ Bật camera
+            </button>
+
+            <button class="btn btn-danger"
+                    id="stopBtn"
+                    onclick="stopCamera()"
+                    disabled>
+              ■ Tắt
+            </button>
+          </div>
+        </div>
+
+      </article>
+
+      <!-- ================= TRẠNG THÁI ================= -->
+      <article class="panel">
+
+        <div class="panel-header">
+          <div>
+            <h3>Trạng thái tài xế</h3>
+            <p>Chỉ số nhận diện cập nhật từ hệ thống</p>
+          </div>
+        </div>
+
+        <div class="status-box">
+          <div class="status-main">
+            <div class="status-symbol" id="statusSymbol">
+              ◉
+            </div>
+            <div>
+              <div class="status-title" id="statusTitle">
+                Đang chờ dữ liệu
+              </div>
+              <div class="status-description"
+                   id="statusDescription">
+                Bật camera để theo dõi trạng thái tài xế.
+              </div>
+            </div>
+            <span class="state-pill" id="statusPill">
+              STANDBY
+            </span>
+          </div>
+
+          <div class="metric">
+            <div class="metric-top">
+              <span>EAR · Eye Aspect Ratio</span>
+              <span class="metric-value" id="earValue">
+                --
+              </span>
+            </div>
+            <div class="progress">
+              <div class="progress-fill"
+                   id="earBar"
+                   style="background:var(--primary)">
+              </div>
+            </div>
+            <div class="metric-note">
+              Ngưỡng tham khảo hiện tại: 0.21
+            </div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-top">
+              <span>MAR · Mouth Aspect Ratio</span>
+              <span class="metric-value" id="marValue">
+                --
+              </span>
+            </div>
+            <div class="progress">
+              <div class="progress-fill"
+                   id="marBar"
+                   style="background:var(--yellow)">
+              </div>
+            </div>
+            <div class="metric-note">
+              Ngưỡng ngáp tham khảo hiện tại: 0.50
+            </div>
+          </div>
+
+        </div>
+
+        <div style="padding:17px 20px">
+          <div class="metric-top">
+            <span>Trạng thái kết nối API</span>
+            <span class="state-pill" id="apiPill">
+              ĐANG KIỂM TRA
+            </span>
+          </div>
+          <div class="status-description" id="apiMessage">
+            Đang kết nối đến Flask server...
+          </div>
+        </div>
+
+      </article>
+    </section>
+
+    <!-- ================= BIỂU ĐỒ ================= -->
+    <section class="panel"
+             id="analytics"
+             style="margin-bottom:20px">
+
+      <div class="panel-header">
+        <div>
+          <h3>Phân tích cảnh báo</h3>
+          <p>20 sự kiện gần nhất từ dữ liệu lịch sử</p>
+        </div>
+        <span class="muted" style="font-size:11px">
+          Theo thứ tự thời gian
+        </span>
+      </div>
+
+      <div class="chart-area">
+        <canvas id="historyChart"
+                aria-label="Biểu đồ cảnh báo"
+                role="img">
+        </canvas>
+      </div>
+
+      <div class="chart-legend">
+        <span>
+          <span class="legend-dot"
+                style="background:var(--red)">
+          </span>
+          Buồn ngủ
+        </span>
+        <span>
+          <span class="legend-dot"
+                style="background:var(--yellow)">
+          </span>
+          Ngáp
+        </span>
+      </div>
+    </section>
+
+    <!-- ================= LỊCH SỬ ================= -->
+    <section class="panel history-panel" id="history">
+
+      <div class="panel-header">
+        <div>
+          <h3>Lịch sử cảnh báo</h3>
+          <p id="historySubtitle">
+            Đang tải lịch sử...
+          </p>
+        </div>
+
+        <div class="filters">
+
+          <select class="control"
+                  id="typeFilter"
+                  aria-label="Lọc loại cảnh báo">
+            <option value="">Tất cả loại</option>
+            <option value="DROWSY">Buồn ngủ</option>
+            <option value="YAWNING">Ngáp</option>
+          </select>
+
+          <input class="control"
+                 type="date"
+                 id="dateFilter"
+                 aria-label="Lọc theo ngày">
+
+          <button class="btn"
+                  onclick="applyHistoryFilters()">
+            Lọc
+          </button>
+
+          <button class="btn"
+                  onclick="resetFilters()">
+            Xóa lọc
+          </button>
+
+          <!-- XUẤT CSV -->
+          <button class="btn btn-primary"
+                  onclick="exportCSV()">
+            ↓ Xuất CSV
+          </button>
+
+          <!-- XUẤT PDF -->
+          <button class="btn btn-primary"
+                  onclick="exportPDF(false)">
+            📄 Xuất PDF
+          </button>
+
+          <!-- PDF KÈM ẢNH -->
+          <button class="btn"
+                  onclick="exportPDF(true)"
+                  title="Bao gồm ảnh minh chứng đã lưu">
+            📷 PDF + Ảnh
+          </button>
+
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Loại cảnh báo</th>
+              <th>EAR</th>
+              <th>MAR</th>
+              <th>Thời gian ghi nhận</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr>
+              <td colspan="5" class="empty">
+                Đang tải dữ liệu...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="history-pagination">
+        <span class="muted" id="resultCount">
+          0 bản ghi phù hợp
+        </span>
+
+        <div class="pagination-controls">
+
+          <button class="btn"
+                  id="prevPageBtn"
+                  onclick="goToHistoryPage(-1)"
+                  disabled>
+            ← Trước
+          </button>
+
+          <span class="page-info" id="pageInfo">
+            Trang 1 / 1
+          </span>
+
+          <button class="btn"
+                  id="nextPageBtn"
+                  onclick="goToHistoryPage(1)"
+                  disabled>
+            Tiếp →
+          </button>
+
+          <button class="btn" onclick="loadHistory()">
+            ↻ Cập nhật
+          </button>
+
+        </div>
+      </div>
+
+    </section>
+
+    <footer class="footer">
+      <span>
+        DriveGuard AI · Driver Drowsiness Detection
+      </span>
+      <span>
+        Flask · SQLite · MediaPipe · Deep Learning
+      </span>
+    </footer>
+
+  </main>
+</div>
+
+<div class="toast"
+     id="toast"
+     role="status"
+     aria-live="polite">
+</div>
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+const $ = id => document.getElementById(id);
+
+let cameraOn = false;
+let toastTimer = null;
+let currentHistory = [];
+let chartData = [];
+let statusEventSource = null;
+let statusFallbackTimer = null;
+
+let currentHistoryPage = 1;
+let historyTotalPages = 1;
+let historyTotal = 0;
+
+let displayedEar = null;
+let displayedMar = null;
+
+const HISTORY_PAGE_SIZE = 10;
+const SMOOTHING_FACTOR = 0.35;
+
+/* ================= THÔNG BÁO ================= */
+
+function showToast(message) {
+  const toast = $("toast");
+
+  toast.textContent = message;
+  toast.classList.add("show");
+
+  clearTimeout(toastTimer);
+
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 3500);
+}
+
+/* ================= ĐỒNG HỒ ================= */
+
+function updateClock() {
+  const now = new Date();
+
+  $("currentDate").textContent =
+    now.toLocaleDateString("vi-VN", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+
+  $("currentTime").textContent =
+    now.toLocaleTimeString("vi-VN");
+}
+
+/* ================= HÀM HỖ TRỢ ================= */
+
+function safeNumber(value) {
+  if (value === null ||
+      value === undefined ||
+      value === "") {
+    return null;
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatMetric(value) {
+  const number = safeNumber(value);
+
+  return number === null
+    ? "--"
+    : number.toFixed(3);
+}
+
+async function fetchJSON(url, options = {}) {
+  const response = await fetch(url, {
+    cache: "no-store",
+    ...options
+  });
+
+  if (!response.ok) {
+    throw new Error("HTTP " + response.status);
+  }
+
+  return response.json();
+}
+
+/* ================= THỐNG KÊ ================= */
+
+async function loadStatistics() {
+  const data = await fetchJSON("/api/statistics");
+
+  $("totalCount").textContent = data.total ?? 0;
+  $("drowsyCount").textContent = data.drowsy ?? 0;
+  $("yawningCount").textContent = data.yawning ?? 0;
+
+  const total = Number(data.total) || 0;
+  const drowsy = Number(data.drowsy) || 0;
+
+  $("drowsyRate").textContent =
+    (total ? drowsy / total * 100 : 0).toFixed(1) + "%";
+
+  chartData = Array.isArray(data.history)
+    ? data.history
+    : [];
+
+  drawChart(chartData);
+}
+
+/* ================= TRẠNG THÁI AI ================= */
+
+function normalizeStatus(data) {
+  if (!data || typeof data !== "object") {
+    return {};
+  }
+
+  const ear = data.ear ?? data.EAR ?? data.current_ear;
+  const mar = data.mar ?? data.MAR ?? data.current_mar;
+
+  let raw =
+    data.status ??
+    data.state ??
+    data.event_type ??
+    data.detection_status ??
+    "";
+
+  raw = String(raw);
+  const upper = raw.toUpperCase();
+
+  let state = "UNKNOWN";
+
+  if (
+    upper.includes("DROWSY") ||
+    upper.includes("BUỒN NGỦ") ||
+    upper.includes("BUON NGU")
+  ) {
+    state = "DROWSY";
+  } else if (
+    upper.includes("YAWN") ||
+    upper.includes("NGÁP") ||
+    upper.includes("NGAP")
+  ) {
+    state = "YAWNING";
+  } else if (
+    upper.includes("NO_FACE") ||
+    upper.includes("NO FACE")
+  ) {
+    state = "NO_FACE";
+  } else if (
+    upper.includes("EYES_NOT_DETECTED")
+  ) {
+    state = "EYES_NOT_DETECTED";
+  } else if (
+    upper.includes("EYES_CLOSED") ||
+    upper.includes("EYES CLOSED")
+  ) {
+    state = "EYES_CLOSED";
+  } else if (
+    upper.includes("NORMAL") ||
+    upper.includes("EYES OPEN") ||
+    upper.includes("TỈNH") ||
+    upper.includes("TINH TAO")
+  ) {
+    state = "NORMAL";
+  } else if (
+    upper.includes("WAIT") ||
+    upper.includes("STANDBY") ||
+    upper.includes("IDLE")
+  ) {
+    state = "STANDBY";
+  }
+
+  return {
+    ear: safeNumber(ear),
+    mar: safeNumber(mar),
+    state,
+    raw
+  };
+}
+
+function setStatus(data) {
+  const status = normalizeStatus(data);
+
+  if (status.ear === null) {
+    displayedEar = null;
+  } else {
+    displayedEar =
+      displayedEar === null
+        ? status.ear
+        : displayedEar +
+          SMOOTHING_FACTOR *
+          (status.ear - displayedEar);
+  }
+
+  if (status.mar === null) {
+    displayedMar = null;
+  } else {
+    displayedMar =
+      displayedMar === null
+        ? status.mar
+        : displayedMar +
+          SMOOTHING_FACTOR *
+          (status.mar - displayedMar);
+  }
+
+  $("earValue").textContent =
+    formatMetric(displayedEar);
+
+  $("marValue").textContent =
+    formatMetric(displayedMar);
+
+  $("earBar").style.width =
+    displayedEar === null
+      ? "0%"
+      : Math.min(
+          100,
+          Math.max(0, displayedEar / 0.4 * 100)
+        ) + "%";
+
+  $("marBar").style.width =
+    displayedMar === null
+      ? "0%"
+      : Math.min(
+          100,
+          Math.max(0, displayedMar / 1.2 * 100)
+        ) + "%";
+
+  const configs = {
+    DROWSY: {
+      title: "Phát hiện buồn ngủ",
+      desc: "Hệ thống phát hiện dấu hiệu buồn ngủ.",
+      pill: "DROWSY",
+      cls: "danger",
+      symbol: "!"
+    },
+
+    YAWNING: {
+      title: "Phát hiện ngáp",
+      desc: "Hệ thống phát hiện dấu hiệu ngáp.",
+      pill: "YAWNING",
+      cls: "warning",
+      symbol: "◌"
+    },
+
+    NORMAL: {
+      title: "Tỉnh táo",
+      desc: "Mắt đang mở, chưa phát hiện dấu hiệu cảnh báo.",
+      pill: "NORMAL",
+      cls: "",
+      symbol: "✓"
+    },
+
+    EYES_CLOSED: {
+      title: "Mắt đang nhắm",
+      desc: "Đang theo dõi thời gian nhắm mắt.",
+      pill: "EYES CLOSED",
+      cls: "warning",
+      symbol: "◉"
+    },
+
+    NO_FACE: {
+      title: "Không thấy khuôn mặt",
+      desc: "Điều chỉnh vị trí khuôn mặt.",
+      pill: "NO FACE",
+      cls: "warning",
+      symbol: "?"
+    },
+
+    EYES_NOT_DETECTED: {
+      title: "Chưa nhận diện được mắt",
+      desc: "Kiểm tra vị trí khuôn mặt và ánh sáng.",
+      pill: "EYES NOT DETECTED",
+      cls: "warning",
+      symbol: "?"
+    },
+
+    STANDBY: {
+      title: "Đang chờ dữ liệu",
+      desc: "Bật camera để theo dõi tài xế.",
+      pill: "STANDBY",
+      cls: "",
+      symbol: "◉"
+    },
+
+    UNKNOWN: {
+      title: "Đang nhận dữ liệu",
+      desc: "Chưa xác định trạng thái từ API.",
+      pill: "UNKNOWN",
+      cls: "warning",
+      symbol: "…"
+    }
+  };
+
+  const config = configs[status.state] || configs.UNKNOWN;
+
+  $("statusTitle").textContent = config.title;
+  $("statusDescription").textContent = config.desc;
+  $("statusPill").textContent = config.pill;
+  $("statusPill").className =
+    "state-pill " + config.cls;
+  $("statusSymbol").textContent = config.symbol;
+
+  $("statusSymbol").style.color =
+    status.state === "DROWSY"
+      ? "var(--red)"
+      : status.state === "YAWNING"
+      ? "var(--yellow)"
+      : status.state === "NORMAL"
+      ? "var(--green)"
+      : "var(--primary)";
+
+  return status;
+}
+
+function applyStatusData(data) {
+  const status = setStatus(data);
+  const cameraActive = data.camera_on === true;
+
+  if (status.state === "DROWSY") {
+    $("cameraBadge").textContent =
+      "CẢNH BÁO BUỒN NGỦ";
+  } else if (status.state === "YAWNING") {
+    $("cameraBadge").textContent =
+      "PHÁT HIỆN NGÁP";
+  } else if (cameraActive) {
+    $("cameraBadge").textContent =
+      "ĐANG GIÁM SÁT";
+  } else {
+    $("cameraBadge").textContent =
+      "SẴN SÀNG";
+  }
+
+  if (cameraActive) {
+    $("apiPill").textContent = "ĐÃ KẾT NỐI";
+    $("apiPill").className = "state-pill";
+    $("apiMessage").textContent =
+      "Đang nhận dữ liệu trực tiếp từ webcam.";
+  } else {
+    $("apiPill").textContent = "CHỜ CAMERA";
+    $("apiPill").className =
+      "state-pill warning";
+    $("apiMessage").textContent =
+      "API hoạt động, camera chưa bật.";
+  }
+}
+
+async function loadStatus() {
+  try {
+    const data = await fetchJSON("/api/status");
+    applyStatusData(data);
+  } catch (error) {
+    $("apiPill").textContent = "CÓ LỖI";
+    $("apiPill").className = "state-pill danger";
+    $("apiMessage").textContent =
+      "Không thể đọc trạng thái: " + error.message;
+  }
+}
+
+/* ================= SSE ================= */
+
+function startStatusStream() {
+  if (!("EventSource" in window)) {
+    loadStatus();
+    statusFallbackTimer =
+      setInterval(loadStatus, 500);
+    return;
+  }
+
+  if (statusEventSource) {
+    statusEventSource.close();
+  }
+
+  statusEventSource =
+    new EventSource("/api/status/stream");
+
+  statusEventSource.onmessage = function(event) {
+    try {
+      const data = JSON.parse(event.data);
+      applyStatusData(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  statusEventSource.onopen = function() {
+    if (statusFallbackTimer !== null) {
+      clearInterval(statusFallbackTimer);
+      statusFallbackTimer = null;
+    }
+  };
+
+  statusEventSource.onerror = function() {
+    if (statusFallbackTimer === null) {
+      loadStatus();
+      statusFallbackTimer =
+        setInterval(loadStatus, 500);
+    }
+  };
+}
+
+/* ================= CAMERA ================= */
+
+async function startCamera() {
+  if (cameraOn) return;
+
+  $("startBtn").disabled = true;
+  $("cameraMessage").textContent =
+    "Đang khởi động webcam...";
+
+  const img = $("cameraFeed");
+
+  img.onload = () => {
+    $("cameraPlaceholder").style.display = "none";
+    img.style.display = "block";
+
+    $("cameraOverlayText").textContent =
+      "CAMERA LIVE";
+
+    $("cameraMessage").textContent =
+      "Webcam đang hoạt động";
+
+    $("startBtn").disabled = true;
+    $("stopBtn").disabled = false;
+  };
+
+  img.onerror = () => {
+    cameraOn = false;
+    img.style.display = "none";
+
+    $("cameraPlaceholder").style.display = "block";
+    $("cameraBadge").textContent = "LỖI CAMERA";
+
+    $("cameraOverlayText").textContent =
+      "CAMERA OFFLINE";
+
+    $("cameraMessage").textContent =
+      "Không thể kết nối webcam.";
+
+    $("startBtn").disabled = false;
+    $("stopBtn").disabled = true;
+
+    showToast("Không mở được webcam.");
+  };
+
+  img.src = "/video_feed?t=" + Date.now();
+
+  cameraOn = true;
+
+  $("cameraBadge").textContent =
+    "ĐANG KẾT NỐI";
+
+  $("cameraOverlayText").textContent =
+    "CONNECTING...";
+
+  $("cameraMessage").textContent =
+    "Đang chờ hình ảnh từ webcam...";
+}
+
+async function stopCamera() {
+  $("stopBtn").disabled = true;
+
+  try {
+    await fetchJSON("/api/camera/stop", {
+      method: "POST"
+    });
+  } catch (error) {
+    showToast(
+      "Lỗi tắt camera: " + error.message
+    );
+  }
+
+  cameraOn = false;
+
+  const img = $("cameraFeed");
+
+  img.onload = null;
+  img.onerror = null;
+  img.removeAttribute("src");
+  img.style.display = "none";
+
+  $("cameraPlaceholder").style.display = "block";
+  $("cameraBadge").textContent = "SẴN SÀNG";
+
+  $("cameraOverlayText").textContent =
+    "CAMERA OFFLINE";
+
+  $("cameraMessage").textContent =
+    "Webcam đã tắt";
+
+  $("startBtn").disabled = false;
+  $("stopBtn").disabled = true;
+
+  showToast("Đã gửi yêu cầu tắt camera.");
+}
+
+/* ================= LỊCH SỬ ================= */
+
+function eventLabel(type) {
+  if (type === "DROWSY") return "Buồn ngủ";
+  if (type === "YAWNING") return "Ngáp";
+
+  return type || "Không xác định";
+}
+
+function formatDate(value) {
+  if (!value) return "--";
+
+  const normalized =
+    String(value).replace(" ", "T");
+
+  const date = new Date(normalized);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+}
+
+function renderHistory(rows) {
+  const body = $("historyBody");
+  body.replaceChildren();
+
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+
+    td.colSpan = 5;
+    td.className = "empty";
+    td.textContent = "Không có dữ liệu phù hợp.";
+
+    tr.appendChild(td);
+    body.appendChild(tr);
+  } else {
+    rows.forEach((row, index) => {
+      const tr = document.createElement("tr");
+
+      const values = [
+        historyTotal -
+          (currentHistoryPage - 1) *
+          HISTORY_PAGE_SIZE -
+          index,
+        eventLabel(row.event_type),
+        formatMetric(row.ear),
+        formatMetric(row.mar),
+        formatDate(row.created_at)
+      ];
+
+      values.forEach((value, col) => {
+        const td = document.createElement("td");
+
+        if (col === 1) {
+          const badge = document.createElement("span");
+
+          badge.className =
+            "event-badge " +
+            (row.event_type === "DROWSY"
+              ? "event-drowsy"
+              : "event-yawning");
+
+          badge.textContent =
+            eventLabel(row.event_type);
+
+          td.appendChild(badge);
+        } else {
+          td.textContent = String(value);
+
+          if (col === 0) {
+            td.className = "muted";
+          }
+        }
+
+        tr.appendChild(td);
+      });
+
+      body.appendChild(tr);
+    });
+  }
+
+  $("resultCount").textContent =
+    rows.length + " bản ghi";
+
+  $("historySubtitle").textContent =
+    "Lịch sử cảnh báo từ cơ sở dữ liệu SQLite";
+}
+
+async function loadHistory() {
+  const params = new URLSearchParams();
+
+  const type = $("typeFilter").value;
+  const date = $("dateFilter").value;
+
+  if (type) params.set("type", type);
+  if (date) params.set("date", date);
+
+  params.set("page", currentHistoryPage);
+  params.set("page_size", HISTORY_PAGE_SIZE);
+
+  try {
+    const data = await fetchJSON(
+      "/api/history?" + params.toString()
+    );
+
+    currentHistory =
+      Array.isArray(data.history)
+        ? data.history
+        : [];
+
+    currentHistoryPage =
+      Number(data.page) || 1;
+
+    historyTotalPages =
+      Number(data.total_pages) || 1;
+
+    historyTotal =
+      Number(data.total) || 0;
+
+    renderHistory(currentHistory);
+
+    $("resultCount").textContent =
+      historyTotal + " bản ghi phù hợp";
+
+    $("historySubtitle").textContent =
+      "Trang " +
+      currentHistoryPage +
+      " / " +
+      historyTotalPages +
+      " · Lịch sử từ SQLite";
+
+    $("prevPageBtn").disabled =
+      currentHistoryPage <= 1;
+
+    $("nextPageBtn").disabled =
+      currentHistoryPage >= historyTotalPages;
+
+    $("pageInfo").textContent =
+      "Trang " +
+      currentHistoryPage +
+      " / " +
+      historyTotalPages;
+
+  } catch (error) {
+    $("historyBody").replaceChildren();
+
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+
+    td.colSpan = 5;
+    td.className = "empty";
+    td.textContent =
+      "Không thể tải lịch sử. Kiểm tra Flask server.";
+
+    tr.appendChild(td);
+    $("historyBody").appendChild(tr);
+
+    showToast(
+      "Lỗi tải lịch sử: " + error.message
+    );
+  }
+}
+
+function goToHistoryPage(direction) {
+  const nextPage =
+    currentHistoryPage + direction;
+
+  if (
+    nextPage < 1 ||
+    nextPage > historyTotalPages
+  ) {
+    return;
+  }
+
+  currentHistoryPage = nextPage;
+  loadHistory();
+}
+
+function applyHistoryFilters() {
+  currentHistoryPage = 1;
+  loadHistory();
+}
+
+function resetFilters() {
+  $("typeFilter").value = "";
+  $("dateFilter").value = "";
+
+  currentHistoryPage = 1;
+  loadHistory();
+}
+
+/* ================= XUẤT CSV ================= */
+
+function exportCSV() {
+  const params = new URLSearchParams();
+
+  const type = $("typeFilter").value;
+  const date = $("dateFilter").value;
+
+  if (type) params.set("type", type);
+  if (date) params.set("date", date);
+
+  const query = params.toString();
+
+  window.location.href =
+    "/api/export/csv" +
+    (query ? "?" + query : "");
+}
+
+/* ================= XUẤT PDF ================= */
+
+function exportPDF(includeImages = false) {
+  const params = new URLSearchParams();
+
+  const type = $("typeFilter").value;
+  const date = $("dateFilter").value;
+
+  if (type) {
+    params.set("type", type);
+  }
+
+  // API PDF dùng from/to để lọc khoảng ngày.
+  if (date) {
+    params.set("from", date);
+    params.set("to", date);
+  }
+
+  if (includeImages) {
+    params.set("images", "1");
+  }
+
+  const query = params.toString();
+
+  const url =
+    "/api/export/pdf" +
+    (query ? "?" + query : "");
+
+  window.location.href = url;
+}
+
+/* ================= LÀM MỚI ================= */
+
+async function refreshAll() {
+  $("refreshBtn").disabled = true;
+
+  try {
+    const results = await Promise.allSettled([
+      loadStatistics(),
+      loadHistory()
+    ]);
+
+    const failed = results.some(
+      result => result.status === "rejected"
+    );
+
+    if (failed) {
+      showToast(
+        "Không tải được một số dữ liệu thống kê."
+      );
+    }
+  } finally {
+    $("refreshBtn").disabled = false;
+  }
+}
+
+/* ================= BIỂU ĐỒ ================= */
+
+function drawChart(rows) {
+  const canvas = $("historyChart");
+  const rect = canvas.getBoundingClientRect();
+
+  if (!rect.width || !rect.height) return;
+
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+
+  const ctx = canvas.getContext("2d");
+
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = rect.height;
+
+  const pad = {
+    left: 38,
+    right: 14,
+    top: 16,
+    bottom: 35
+  };
+
+  const chartW =
+    width - pad.left - pad.right;
+
+  const chartH =
+    height - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, width, height);
+
+  const styles = getComputedStyle(
+    document.documentElement
+  );
+
+  const gridColor =
+    styles.getPropertyValue("--border").trim();
+
+  const muted =
+    styles.getPropertyValue("--muted").trim();
+
+  const red =
+    styles.getPropertyValue("--red").trim();
+
+  const yellow =
+    styles.getPropertyValue("--yellow").trim();
+
+  const sorted = [...rows].reverse();
+
+  const count = sorted.length;
+  const max = Math.max(
+    4,
+    Math.ceil(count / 4)
+  );
+
+  ctx.font = "10px Segoe UI, Arial";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+
+  for (let i = 0; i <= 4; i++) {
+    const y =
+      pad.top + chartH * i / 4;
+
+    const value =
+      Math.round(max * (4 - i) / 4);
+
+    ctx.beginPath();
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 1;
+
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(width - pad.right, y);
+    ctx.stroke();
+
+    ctx.fillStyle = muted;
+    ctx.fillText(
+      String(value),
+      pad.left - 10,
+      y
+    );
+  }
+
+  if (!count) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = muted;
+    ctx.fillText(
+      "Chưa có dữ liệu biểu đồ",
+      width / 2,
+      height / 2
+    );
+    return;
+  }
+
+  const groupW = chartW / count;
+  const barW = Math.max(
+    3,
+    Math.min(14, groupW * 0.28)
+  );
+
+  sorted.forEach((row, index) => {
+    const xCenter =
+      pad.left + groupW * (index + 0.5);
+
+    const color =
+      row.event_type === "DROWSY"
+        ? red
+        : yellow;
+
+    const barHeight =
+      Math.max(4, chartH / max);
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+
+    ctx.roundRect(
+      xCenter - barW / 2,
+      pad.top + chartH - barHeight,
+      barW,
+      barHeight,
+      3
+    );
+
+    ctx.fill();
+
+    if (
+      count <= 10 ||
+      index % Math.ceil(count / 8) === 0
+    ) {
+      const label =
+        String(row.created_at || "")
+          .slice(11, 16);
+
+      ctx.fillStyle = muted;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      ctx.fillText(
+        label || String(index + 1),
+        xCenter,
+        pad.top + chartH + 9
+      );
+    }
+  });
+}
+
+/* ================= KHỞI TẠO ================= */
+
+updateClock();
+setInterval(updateClock, 1000);
+
+// Tải thống kê và lịch sử
+refreshAll();
+
+// Cập nhật thống kê mỗi 5 giây
+setInterval(refreshAll, 5000);
+
+// Cập nhật trạng thái qua SSE
+startStatusStream();
+
+// Vẽ lại biểu đồ khi thay đổi cửa sổ
+window.addEventListener(
+  "resize",
+  () => drawChart(chartData)
+);
+
+</script>
+</body>
+</html>

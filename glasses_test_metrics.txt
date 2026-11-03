@@ -1,0 +1,25 @@
+CNN V3 - KET QUA KIEM THU RIENG KHI DEO KINH
+Model: models\eye_cnn_v3.keras
+Dataset: data\test
+Threshold P(open_eyes): 0.053
+Total images: 97
+Closed eyes: 49
+Open eyes: 48
+
+Confusion matrix (rows=true, columns=predicted)
+labels = [closed_eyes, open_eyes]
+[[49, 0], [0, 48]]
+
+Accuracy: 1.0000 (100.00%)
+Closed eyes - Precision: 1.0000
+Closed eyes - Recall:    1.0000
+Closed eyes - F1-score:  1.0000
+Open eyes   - Precision: 1.0000
+Open eyes   - Recall:    1.0000
+Open eyes   - F1-score:  1.0000
+Macro Precision: 1.0000
+Macro Recall:    1.0000
+Macro F1-score:  1.0000
+ROC AUC (positive class=closed_eyes): 1.0000
+
+CSV predictions: D:\driver-drowsiness-detection\glasses_test_predictions.csv

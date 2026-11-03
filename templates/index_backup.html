@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Driver Safety Monitor | Giám sát tài xế</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+
+  <body>
+    <div class="app">
+      <!-- ===== HEADER ===== -->
+
+      <header class="header">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">🚘</div>
+          <div>
+            <h1>Driver Safety Monitor</h1>
+            <p class="sub">
+              Hệ thống phát hiện ngủ gật tài xế bằng CNN &amp; MediaPipe
+            </p>
+          </div>
+        </div>
+
+        <span id="liveBadge" class="live-badge"> ● Đang giám sát </span>
+      </header>
+
+      <!-- ===== 3 THE THONG KE ===== -->
+
+      <section class="grid-stats" aria-label="Thống kê tổng quan">
+        <div class="card stat">
+          <div>
+            <p class="stat-label">Tổng cảnh báo</p>
+            <p class="stat-number" id="total">{{ total }}</p>
+          </div>
+          <div class="stat-icon all">🔔</div>
+        </div>
+
+        <div class="card stat">
+          <div>
+            <p class="stat-label">Ngủ gật</p>
+            <p class="stat-number" id="drowsy">{{ drowsy }}</p>
+          </div>
+          <div class="stat-icon drowsy">🚨</div>
+        </div>
+
+        <div class="card stat">
+          <div>
+            <p class="stat-label">Ngáp</p>
+            <p class="stat-number" id="yawning">{{ yawning }}</p>
+          </div>
+          <div class="stat-icon yawn">🥱</div>
+        </div>
+      </section>
+
+      <!-- ===== CAMERA VA TRANG THAI ===== -->
+
+      <div class="workspace">
+        <section class="card" aria-labelledby="cameraTitle">
+          <div class="section-top">
+            <h2 class="section-heading" id="cameraTitle">
+              Camera giám sát trực tiếp
+            </h2>
+
+            <div class="camera-controls">
+              <button class="btn btn-start" type="button" id="startCamera">
+                ▶ Bật camera
+              </button>
+
+              <button class="btn btn-stop" type="button" id="stopCamera">
+                ■ Tắt camera
+              </button>
+            </div>
+          </div>
+
+          <div class="feed">
+            <img
+              id="cameraFeed"
+              src="{{ url_for('video_feed') }}"
+              alt="Video webcam nhận diện trạng thái mắt và miệng"
+            />
+
+            <div id="cameraOffMessage">
+              <div class="big">📷</div>
+              <h3>Camera đang tắt</h3>
+              <p>Nhấn “Bật camera” để tiếp tục giám sát.</p>
+            </div>
+          </div>
+
+          <p class="feed-note">
+            Dòng video được xử lý bằng CNN kết hợp EAR và MAR. Chỉ sử dụng cho
+            mục đích nghiên cứu, thử nghiệm.
+          </p>
+        </section>
+
+        <div class="right-stack">
+          <!-- TRANG THAI TAI XE -->
+
+          <section class="card driver-status" id="driverStatus">
+            <h2 class="section-heading">Trạng thái tài xế</h2>
+
+            <div
+              class="status-box status-off"
+              id="statusBox"
+              aria-live="polite"
+            >
+              <div class="status-icon" id="statusIcon">📷</div>
+
+              <h2 id="statusText">Đang kết nối camera...</h2>
+
+              <p id="statusDescription">Đang chờ dữ liệu nhận diện</p>
+            </div>
+          </section>
+
+          <!-- BIEU DO -->
+
+          <section class="card">
+            <h2 class="section-heading">Biểu đồ thống kê cảnh báo</h2>
+
+            <div class="chart-frame">
+              <canvas
+                id="alertChart"
+                aria-label="Biểu đồ ngủ gật và ngáp"
+              ></canvas>
+            </div>
+
+            <p class="chart-fallback" id="chartFallback">
+              Không tải được thư viện biểu đồ. Kiểm tra kết nối Internet.
+            </p>
+          </section>
+        </div>
+      </div>
+
+      <!-- ===== LICH SU CANH BAO ===== -->
+
+      <section class="card history-card">
+        <div class="section-top">
+          <h2 class="section-heading">Lịch sử cảnh báo</h2>
+        </div>
+
+        <div class="history-filters">
+          <div class="field">
+            <label for="filterType">Loại cảnh báo</label>
+
+            <select id="filterType">
+              <option value="">Tất cả</option>
+              <option value="DROWSY">Ngủ gật</option>
+              <option value="YAWNING">Ngáp</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="filterDate">Ngày</label>
+            <input type="date" id="filterDate" />
+          </div>
+
+          <button type="button" class="btn btn-reset" id="resetFilter">
+            Xóa bộ lọc
+          </button>
+
+          <button type="button" class="btn btn-export" id="exportCSV">
+            ⬇ Xuất CSV
+          </button>
+        </div>
+
+        <p id="historyCount">Đang tải lịch sử...</p>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Loại cảnh báo</th>
+                <th>EAR</th>
+                <th>MAR</th>
+                <th>Thời gian</th>
+              </tr>
+            </thead>
+
+            <tbody id="history-body">
+              {% for row in history %}
+              <tr>
+                <td>{{ row[0] }}</td>
+                <td>
+                  {{ "%.3f"|format(row[1]) if row[1] is not none else "-" }}
+                </td>
+                <td>
+                  {{ "%.3f"|format(row[2]) if row[2] is not none else "-" }}
+                </td>
+                <td>{{ row[3] }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4">Chưa có cảnh báo nào</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <p class="footer">
+        Driver Drowsiness Detection — Dashboard thử nghiệm cho đồ án tốt nghiệp.
+      </p>
+    </div>
+
+    <!-- ===== JAVASCRIPT ===== -->
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      // ===== KHOI TAO BIEU DO =====
+
+      let alertChart = null;
+
+      if (typeof Chart !== "undefined") {
+        alertChart = new Chart($("alertChart"), {
+          type: "bar",
+
+          data: {
+            labels: ["Ngủ gật", "Ngáp"],
+
+            datasets: [
+              {
+                label: "Số lần cảnh báo",
+                data: [0, 0],
+                backgroundColor: ["#e04848", "#e9a02d"],
+                borderRadius: 9,
+                maxBarThickness: 110,
+              },
+            ],
+          },
+
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            plugins: {
+              legend: {
+                display: false,
+              },
+            },
+
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  precision: 0,
+                },
+              },
+
+              x: {
+                grid: {
+                  display: false,
+                },
+              },
+            },
+          },
+        });
+      } else {
+        $("chartFallback").style.display = "block";
+      }
+
+      // ===== CAP NHAT THONG KE =====
+
+      async function updateDashboard() {
+        try {
+          const response = await fetch("/api/statistics", {
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            throw new Error("Không tải được thống kê");
+          }
+
+          const data = await response.json();
+
+          $("total").textContent = data.total;
+          $("drowsy").textContent = data.drowsy;
+          $("yawning").textContent = data.yawning;
+
+          if (alertChart) {
+            alertChart.data.datasets[0].data = [data.drowsy, data.yawning];
+
+            alertChart.update("none");
+          }
+        } catch (err) {
+          console.error("Lỗi thống kê:", err);
+        }
+      }
+
+      // ===== BAT TAT CAMERA =====
+
+      let cameraOn = true;
+      let cameraBusy = false;
+
+      function setCameraButtons(busy) {
+        cameraBusy = busy;
+
+        $("startCamera").disabled = busy || cameraOn;
+
+        $("stopCamera").disabled = busy || !cameraOn;
+
+        $("liveBadge").className = cameraOn ? "live-badge" : "live-badge off";
+
+        $("liveBadge").textContent = cameraOn
+          ? "● Đang giám sát"
+          : "● Camera đã tắt";
+      }
+
+      function startCamera() {
+        if (cameraBusy || cameraOn) return;
+
+        cameraBusy = true;
+        setCameraButtons(true);
+
+        const feed = $("cameraFeed");
+        const message = $("cameraOffMessage");
+
+        feed.style.display = "none";
+        message.style.display = "block";
+        message.querySelector("h3").textContent = "Đang khởi động camera...";
+
+        let finished = false;
+
+        function finish(success) {
+          if (finished) return;
+          finished = true;
+
+          feed.onload = null;
+          feed.onerror = null;
+
+          cameraBusy = false;
+          cameraOn = success;
+
+          feed.style.display = success ? "block" : "none";
+          message.style.display = success ? "none" : "block";
+
+          if (!success) {
+            feed.removeAttribute("src");
+            message.querySelector("h3").textContent =
+              "Không thể khởi động camera";
+          }
+
+          setCameraButtons(false);
+        }
+
+        feed.onload = () => finish(true);
+        feed.onerror = () => finish(false);
+
+        feed.src = "/video_feed?t=" + Date.now();
+      }
+      async function stopCamera() {
+        if (cameraBusy || !cameraOn) return;
+
+        setCameraButtons(true);
+
+        $("cameraFeed").style.display = "none";
+        $("cameraFeed").removeAttribute("src");
+
+        try {
+          const response = await fetch("/api/camera/stop", { method: "POST" });
+
+          if (!response.ok) {
+            throw new Error("Không tắt được camera");
+          }
+
+          cameraOn = false;
+
+          $("cameraOffMessage").style.display = "block";
+
+          $("cameraOffMessage").querySelector("h3").textContent =
+            "Camera đang tắt";
+
+          $("cameraOffMessage").querySelector("p").textContent =
+            "Nhấn “Bật camera” để tiếp tục giám sát";
+        } catch (err) {
+          console.error("Lỗi tắt camera:", err);
+
+          alert("Không thể tắt camera. Vui lòng kiểm tra Flask.");
+
+          $("cameraFeed").src = "/video_feed?t=" + Date.now();
+
+          $("cameraFeed").style.display = "block";
+
+          $("cameraOffMessage").style.display = "none";
+
+          cameraOn = true;
+        } finally {
+          setCameraButtons(false);
+        }
+      }
+
+      $("startCamera").addEventListener("click", startCamera);
+
+      $("stopCamera").addEventListener("click", stopCamera);
+
+      setCameraButtons(false);
+
+      // ===== HIEN THI TRANG THAI TAI XE =====
+
+      function showStatus(status) {
+        const box = $("statusBox");
+        box.className = "status-box";
+
+        const states = {
+          "DROWSY!": [
+            "status-danger",
+            "🚨",
+            "CẢNH BÁO NGỦ GẬT!",
+            "Tài xế nhắm mắt quá lâu",
+          ],
+
+          "YAWNING!": [
+            "status-warning",
+            "🥱",
+            "PHÁT HIỆN NGÁP",
+            "Phát hiện dấu hiệu mệt mỏi",
+          ],
+
+          "CNN: EYES CLOSED": [
+            "status-warning",
+            "😴",
+            "ĐANG NHẮM MẮT",
+            "Đang theo dõi thời gian nhắm mắt",
+          ],
+
+          "EYES OPEN": [
+            "status-normal",
+            "✅",
+            "BÌNH THƯỜNG",
+            "Tài xế đang mở mắt",
+          ],
+
+          "CNN: EYES OPEN": [
+            "status-normal",
+            "✅",
+            "BÌNH THƯỜNG",
+            "Tài xế đang mở mắt",
+          ],
+        };
+
+        const values = states[status] || [
+          "status-off",
+          "📷",
+          status || "KHÔNG CÓ DỮ LIỆU",
+          "Chưa có trạng thái nhận diện hợp lệ",
+        ];
+
+        box.classList.add(values[0]);
+
+        $("statusIcon").textContent = values[1];
+        $("statusText").textContent = values[2];
+        $("statusDescription").textContent = values[3];
+      }
+
+      // ===== CAP NHAT TRANG THAI TU API =====
+
+      async function updateDriverStatus() {
+        try {
+          const response = await fetch("/api/status", { cache: "no-store" });
+
+          if (!response.ok) {
+            throw new Error("Không tải được trạng thái");
+          }
+
+          const data = await response.json();
+
+          showStatus(data.status);
+
+          if (cameraOn) {
+            $("liveBadge").className = "live-badge";
+            $("liveBadge").textContent = "● Đang giám sát";
+          } else {
+            $("liveBadge").className = "live-badge off";
+            $("liveBadge").textContent = "● Camera đã tắt";
+          }
+        } catch (err) {
+          console.error("Lỗi trạng thái:", err);
+          showStatus("MẤT KẾT NỐI");
+        }
+      }
+
+      // ===== LICH SU CANH BAO =====
+
+      let historyRequestId = 0;
+
+      async function updateHistory() {
+        const requestId = ++historyRequestId;
+
+        const params = new URLSearchParams();
+
+        if ($("filterType").value) {
+          params.set("type", $("filterType").value);
+        }
+
+        if ($("filterDate").value) {
+          params.set("date", $("filterDate").value);
+        }
+
+        try {
+          const response = await fetch("/api/history?" + params.toString(), {
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            throw new Error("Không tải được lịch sử");
+          }
+
+          const data = await response.json();
+
+          if (requestId !== historyRequestId) {
+            return;
+          }
+
+          const tbody = $("history-body");
+
+          tbody.replaceChildren();
+
+          $("historyCount").textContent =
+            "Tìm thấy " + data.total + " cảnh báo";
+
+          if (!data.history.length) {
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+
+            cell.colSpan = 4;
+            cell.textContent = "Không có dữ liệu phù hợp";
+
+            row.appendChild(cell);
+            tbody.appendChild(row);
+
+            return;
+          }
+
+          for (const item of data.history) {
+            const row = document.createElement("tr");
+
+            const label =
+              item.event_type === "DROWSY"
+                ? "Ngủ gật"
+                : item.event_type === "YAWNING"
+                ? "Ngáp"
+                : item.event_type;
+
+            const values = [
+              label,
+
+              item.ear == null ? "-" : Number(item.ear).toFixed(3),
+
+              item.mar == null ? "-" : Number(item.mar).toFixed(3),
+
+              item.created_at,
+            ];
+
+            values.forEach((value, index) => {
+              const cell = document.createElement("td");
+
+              if (index === 0) {
+                const tag = document.createElement("span");
+
+                tag.className =
+                  "event " + (item.event_type === "DROWSY" ? "drowsy" : "yawn");
+
+                tag.textContent = value;
+                cell.appendChild(tag);
+              } else {
+                cell.textContent = value == null ? "-" : value;
+              }
+
+              row.appendChild(cell);
+            });
+
+            tbody.appendChild(row);
+          }
+        } catch (err) {
+          console.error("Lỗi lịch sử:", err);
+
+          $("historyCount").textContent = "Không thể tải lịch sử";
+        }
+      }
+
+      // ===== BO LOC =====
+
+      $("filterType").addEventListener("change", updateHistory);
+
+      $("filterDate").addEventListener("change", updateHistory);
+
+      $("resetFilter").addEventListener("click", () => {
+        $("filterType").value = "";
+        $("filterDate").value = "";
+
+        updateHistory();
+      });
+
+      // ===== XUAT CSV =====
+
+      $("exportCSV").addEventListener("click", () => {
+        const params = new URLSearchParams();
+
+        if ($("filterType").value) {
+          params.set("type", $("filterType").value);
+        }
+
+        if ($("filterDate").value) {
+          params.set("date", $("filterDate").value);
+        }
+
+        window.location.href = "/api/export/csv?" + params.toString();
+      });
+
+      // ===== TU DONG CAP NHAT =====
+
+      updateDashboard();
+      updateDriverStatus();
+      updateHistory();
+
+      setInterval(updateDashboard, 3000);
+      setInterval(updateDriverStatus, 1000);
+      setInterval(updateHistory, 3000);
+    </script>
+  </body>
+</html>
