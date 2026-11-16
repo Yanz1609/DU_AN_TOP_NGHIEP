@@ -50,3 +50,24 @@ debug/
 # Generated Python files
 .pytest_cache/
 .mypy_cache/
+
+
+# Evidence images - private driver photos
+private_evidence/
+
+# OpenStreetMap cache
+map_tile_cache/
+
+# Generated reports
+reports/
+exports/
+*.pdf
+
+# Private location data
+location_data/
+gps_logs/
+
+# Local backup files
+*.bak
+*.sqlite
+*.sqlite3

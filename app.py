@@ -1,4 +1,4 @@
-
+from location_bridge import install as install_location_bridge
 from flask import Flask, render_template, Response, jsonify, request
 from camera_stream import CameraStream
 import sqlite3
@@ -7,14 +7,30 @@ import json
 import time
 import io
 from datetime import date
+
 from evidence_reports import install as install_evidence_reports
+from location_bridge import (
+    install as install_driver_location,
+    clear_location
+)
 
 app = Flask(__name__)
 
-install_evidence_reports(app)
-
 camera_stream = CameraStream()
 
+# Dang ky module PDF va anh minh chung
+install_evidence_reports(app)
+
+# Dang ky module GPS
+install_location_bridge(app, camera_stream)
+
+# Dang ky GPS Bridge sau khi khoi tao camera
+install_driver_location(app, camera_stream)
+
+
+# ==========================================
+# CAMERA STREAM
+# ==========================================
 
 @app.route("/video_feed")
 def video_feed():
@@ -30,11 +46,17 @@ def video_feed():
         print("LOI KHOI DONG CAMERA:", e)
 
         camera_stream.stop()
+        clear_location()
 
         return jsonify({
             "success": False,
             "message": "Khong the khoi dong webcam"
         }), 503
+
+
+# ==========================================
+# STATISTICS
+# ==========================================
 
 def get_statistics():
     conn = sqlite3.connect("drowsiness.db")
@@ -66,6 +88,10 @@ def get_statistics():
     return total, drowsy, yawning, history
 
 
+# ==========================================
+# DASHBOARD
+# ==========================================
+
 @app.route("/")
 def dashboard():
     total, drowsy, yawning, history = get_statistics()
@@ -79,7 +105,10 @@ def dashboard():
     )
 
 
-# API cung cap thong ke va lich su canh bao
+# ==========================================
+# API STATISTICS
+# ==========================================
+
 @app.route("/api/statistics")
 def api_statistics():
     total, drowsy, yawning, history = get_statistics()
@@ -100,10 +129,18 @@ def api_statistics():
     })
 
 
-# API lay trang thai tai xe truc tiep
+# ==========================================
+# API STATUS
+# ==========================================
+
 @app.route("/api/status")
 def api_status():
     return jsonify(camera_stream.get_status())
+
+
+# ==========================================
+# SERVER-SENT EVENTS
+# ==========================================
 
 @app.route("/api/status/stream")
 def api_status_stream():
@@ -114,7 +151,6 @@ def api_status_stream():
             while True:
                 data = camera_stream.get_status()
 
-                # Lam tron chi so de giam du lieu khong can thiet
                 payload = dict(data)
 
                 if payload.get("ear") is not None:
@@ -132,16 +168,13 @@ def api_status_stream():
                     ensure_ascii=False
                 )
 
-                # Chi gui khi du lieu thuc su thay doi
                 if message != last_payload:
                     yield f"data: {message}\n\n"
                     last_payload = message
 
-                # Kiem tra trang thai moi toi da 20 lan/giay
                 time.sleep(0.05)
 
         except GeneratorExit:
-            # Trinh duyet dong ket noi SSE
             return
 
     return Response(
@@ -154,10 +187,16 @@ def api_status_stream():
     )
 
 
-# API tat camera
+# ==========================================
+# STOP CAMERA + CLEAR GPS
+# ==========================================
+
 @app.route("/api/camera/stop", methods=["POST"])
 def stop_camera():
     camera_stream.stop()
+
+    # Xoa vi tri luu tam khi camera tat
+    clear_location()
 
     return jsonify({
         "success": True,
@@ -165,30 +204,28 @@ def stop_camera():
     })
 
 
-# API lich su canh bao co bo loc
+# ==========================================
+# HISTORY WITH FILTER + PAGINATION
+# ==========================================
 
 @app.route("/api/history")
 def api_history():
     event_type = request.args.get("type", "")
     selected_date = request.args.get("date", "")
 
-    # Phan trang
     page = request.args.get("page", 1, type=int) or 1
     page_size = request.args.get("page_size", 10, type=int) or 10
 
     page = max(1, page)
 
-    # Chi cho phep cac kich thuoc trang hop le
     if page_size not in (10, 20, 50):
         page_size = 10
 
-    # Kiem tra loai canh bao
     if event_type not in ("", "DROWSY", "YAWNING"):
         return jsonify({
             "error": "Loai canh bao khong hop le"
         }), 400
 
-    # Kiem tra ngay
     if selected_date:
         try:
             selected_date = date.fromisoformat(
@@ -203,7 +240,6 @@ def api_history():
     conn.row_factory = sqlite3.Row
 
     try:
-        # Tao dieu kien loc dung chung cho truy van dem va truy van du lieu
         conditions = []
         params = []
 
@@ -221,7 +257,6 @@ def api_history():
             else ""
         )
 
-        # Dem tong so ban ghi phu hop voi bo loc
         count_sql = (
             "SELECT COUNT(*) AS total FROM alerts"
             + where_sql
@@ -232,18 +267,15 @@ def api_history():
             params
         ).fetchone()["total"]
 
-        # Tinh tong so trang
         total_pages = max(
             1,
             (total + page_size - 1) // page_size
         )
 
-        # Neu trang vuot qua gioi han thi dua ve trang cuoi
         page = min(page, total_pages)
 
         offset = (page - 1) * page_size
 
-        # Chi lay du lieu cua trang hien tai
         query = """
             SELECT id, event_type, ear, mar, created_at
             FROM alerts
@@ -252,11 +284,9 @@ def api_history():
             LIMIT ? OFFSET ?
         """
 
-        query_params = params + [page_size, offset]
-
         rows = conn.execute(
             query,
-            query_params
+            params + [page_size, offset]
         ).fetchall()
 
         history = [dict(row) for row in rows]
@@ -272,24 +302,30 @@ def api_history():
     finally:
         conn.close()
 
-# ===== XUAT LICH SU CANH BAO RA CSV =====
+
+# ==========================================
+# EXPORT CSV
+# ==========================================
+
 @app.route("/api/export/csv")
 def export_csv():
     event_type = request.args.get("type", "")
     selected_date = request.args.get("date", "")
 
-    # Kiem tra loai canh bao
     if event_type not in ("", "DROWSY", "YAWNING"):
-        return jsonify({"error": "Loai canh bao khong hop le"}), 400
+        return jsonify({
+            "error": "Loai canh bao khong hop le"
+        }), 400
 
-    # Kiem tra ngay
     if selected_date:
         try:
             selected_date = date.fromisoformat(
                 selected_date
             ).isoformat()
         except ValueError:
-            return jsonify({"error": "Ngay khong hop le"}), 400
+            return jsonify({
+                "error": "Ngay khong hop le"
+            }), 400
 
     conn = sqlite3.connect("drowsiness.db")
 
@@ -312,12 +348,14 @@ def export_csv():
 
         query += " ORDER BY id DESC"
 
-        rows = conn.execute(query, params).fetchall()
+        rows = conn.execute(
+            query,
+            params
+        ).fetchall()
 
     finally:
         conn.close()
 
-    # Tao noi dung CSV trong bo nho
     output = io.StringIO()
     writer = csv.writer(output)
 
@@ -344,7 +382,6 @@ def export_csv():
             row[4]
         ])
 
-    # BOM giup Excel doc tieng Viet tot hon
     csv_content = "\ufeff" + output.getvalue()
 
     return Response(
@@ -356,6 +393,10 @@ def export_csv():
         }
     )
 
+
+# ==========================================
+# RUN FLASK
+# ==========================================
 
 if __name__ == "__main__":
     app.run(

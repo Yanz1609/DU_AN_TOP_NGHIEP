@@ -7,6 +7,27 @@
   <title>DriveGuard AI | Driver Monitoring</title>
   <link rel="stylesheet"
         href="{{ url_for('static', filename='css/style.css') }}">
+<!-- DRIVEGUARD AI - GPS MAP -->
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/driver-location.css') }}"
+>
+
+<script
+    defer
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+></script>
+
+<script
+    defer
+    src="{{ url_for('static', filename='js/driver-location.js') }}"
+></script>
+
 </head>
 
 <body>
@@ -123,6 +144,8 @@
     <!-- ================= CAMERA ================= -->
     <section class="content-grid">
 
+      <div class="camera-location-column">
+
       <article class="panel" id="camera">
 
         <div class="panel-header">
@@ -182,6 +205,113 @@
         </div>
 
       </article>
+      
+<!-- ====================================== -->
+<!-- DRIVEGUARD AI - DRIVER GPS LOCATION -->
+<!-- ====================================== -->
+
+      <section class="dg-location-card" id="driverLocationSection">
+
+          <div class="dg-location-header">
+              <div>
+                  <h3 class="dg-location-title">
+                      📍 Vị trí tài xế trực tiếp
+                  </h3>
+
+                  <p class="dg-location-subtitle">
+                      Theo dõi vị trí thiết bị khi camera hoạt động
+                  </p>
+              </div>
+
+              <span
+                  id="driverGpsStatus"
+                  class="dg-gps-status"
+              >
+                  CHƯA BẬT GPS
+              </span>
+          </div>
+
+          <!-- Ban do -->
+          <div id="driverMap"></div>
+
+          <!-- Thong tin toa do -->
+          <div class="dg-location-grid">
+
+              <div class="dg-location-item">
+                  <span class="dg-location-label">
+                      Vĩ độ (Latitude)
+                  </span>
+
+                  <span
+                      id="driverLatitude"
+                      class="dg-location-value"
+                  >
+                      --
+                  </span>
+              </div>
+
+              <div class="dg-location-item">
+                  <span class="dg-location-label">
+                      Kinh độ (Longitude)
+                  </span>
+
+                  <span
+                      id="driverLongitude"
+                      class="dg-location-value"
+                  >
+                      --
+                  </span>
+              </div>
+
+              <div class="dg-location-item">
+                  <span class="dg-location-label">
+                      Độ chính xác ước tính
+                  </span>
+
+                  <span
+                      id="driverAccuracy"
+                      class="dg-location-value"
+                  >
+                      --
+                  </span>
+              </div>
+
+              <div class="dg-location-item">
+                  <span class="dg-location-label">
+                      Cập nhật lần cuối
+                  </span>
+
+                  <span
+                      id="driverLocationTime"
+                      class="dg-location-value"
+                  >
+                      --
+                  </span>
+              </div>
+
+          </div>
+
+          <div class="dg-location-actions">
+              <button
+                  type="button"
+                  class="dg-location-btn"
+                  id="openDriverMap"
+                  onclick="openDriverLocation()"
+                  disabled
+              >
+                  📍 Xem trên Google Maps
+              </button>
+          </div>
+
+          <p class="dg-location-note">
+              Vị trí được lấy từ thiết bị đang mở Dashboard,
+              cần sự cho phép của người dùng.
+              Hệ thống không lưu lịch sử vị trí.
+          </p>
+
+      </section>
+
+      </div><!-- camera-location-column -->
 
       <!-- ================= TRẠNG THÁI ================= -->
       <article class="panel">
@@ -847,6 +977,8 @@ async function startCamera() {
   const img = $("cameraFeed");
 
   img.onload = () => {
+    if (!cameraOn) return;
+    window.startDriverLocation?.();
     $("cameraPlaceholder").style.display = "none";
     img.style.display = "block";
 
@@ -861,6 +993,7 @@ async function startCamera() {
   };
 
   img.onerror = () => {
+    window.stopDriverLocation?.();
     cameraOn = false;
     img.style.display = "none";
 
@@ -894,6 +1027,7 @@ async function startCamera() {
 }
 
 async function stopCamera() {
+  window.stopDriverLocation?.();
   $("stopBtn").disabled = true;
 
   try {

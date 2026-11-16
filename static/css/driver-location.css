@@ -1,0 +1,156 @@
+
+/* DRIVEGUARD AI - DRIVER GPS LOCATION */
+
+.dg-location-card {
+    margin-top: 20px;
+    padding: 23px;
+    background: #101c30;
+    border: 1px solid #23334d;
+    border-radius: 18px;
+    color: #e5edff;
+    min-width: 0;
+}
+
+.dg-location-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 17px;
+    flex-wrap: wrap;
+}
+
+.dg-location-title {
+    margin: 0 0 7px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.dg-location-subtitle {
+    margin: 0;
+    color: #89a6cb;
+    font-size: 13px;
+}
+
+.dg-gps-status {
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid #31506a;
+    background: #142c43;
+    color: #8fb3cc;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.dg-gps-status.active {
+    color: #34e4ab;
+    border-color: #155c56;
+    background: #0b3835;
+}
+
+.dg-gps-status.error {
+    color: #ff9b9b;
+    border-color: #653a47;
+    background: #392031;
+}
+
+#driverMap {
+    width: 100%;
+    height: 310px;
+    border-radius: 13px;
+    border: 1px solid #24415a;
+    background: #06121f;
+    overflow: hidden;
+    z-index: 0;
+}
+
+.dg-location-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 17px;
+}
+
+.dg-location-item {
+    padding: 14px;
+    border: 1px solid #243853;
+    background: #0b1729;
+    border-radius: 11px;
+    min-width: 0;
+}
+
+.dg-location-label {
+    color: #8ca8ce;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 7px;
+}
+
+.dg-location-value {
+    display: block;
+    color: #e8f6ff;
+    font-weight: 700;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+}
+
+.dg-location-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.dg-location-btn {
+    border: 1px solid #1b9fb5;
+    border-radius: 10px;
+    background: #0b3449;
+    color: #45dff4;
+    padding: 11px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.dg-location-btn:hover:not(:disabled) {
+    background: #11506b;
+}
+
+.dg-location-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.dg-location-note {
+    font-size: 12px;
+    color: #8ba1bd;
+    line-height: 1.6;
+    margin: 14px 0 0;
+}
+
+.dg-location-card .leaflet-container {
+    font-family: inherit;
+}
+
+@media (max-width: 700px) {
+    .dg-location-card {
+        padding: 15px;
+    }
+
+    #driverMap {
+        height: 260px;
+    }
+
+    .dg-location-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dg-location-actions {
+        flex-direction: column;
+    }
+
+    .dg-location-btn {
+        width: 100%;
+    }
+}
